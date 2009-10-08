@@ -1,0 +1,37 @@
+This is Weaver, a framework for writing multi-threaded Unit Tests in
+Java.
+
+Documentation is available in the docs directory, including a Users'
+Guide and a Tutorial.
+
+REQUIREMENTS:
+
+Weaver was built with Java 6. (http://java.sun.com/javase/6)
+
+It requires the following components:
+
+ Javassist. (http://www.csg.is.titech.ac.jp/~chiba/javassist). Version 3.8.1 or greater.
+
+ Objenesis. (http://code.google.com/p/objenesis). Version 1.0 or greater.
+
+ Cglib. (http://cglib.sourceforge.net). Version 2.2 or greater.
+
+To build the extensions:
+
+ Easymock/Easymock Class Extesnsion. (http://easymock.org). Version 2.4 or greater.
+
+To run the tests:
+
+ Easymock/Easymock Class Extesnsion.
+
+ JUnit (http://www.junit.org). Version 4.5 or greater.
+
+To run the extensions tests:
+
+ ASM (http://asm.ow2.org). Version 3.0 or greater.
+
+BUILDING:
+
+To build Weaver, edit the build.properties file and fill in the
+location of the required jars. The ant target "all" will build the
+main jar plus the extensions, and run all the tests.

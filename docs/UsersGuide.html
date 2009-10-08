@@ -1,0 +1,759 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> 
+<html> 
+ 
+<head> 
+  <title>Weaver Users Guide</title> 
+  <link type="text/css" rel="stylesheet" href="style.css"> 
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" /> 
+</head> 
+<body>
+<h2>Introduction</h2>
+This guide runs through some sample test cases using Weaver, and
+demonstrates how certain types of test can be written. For a more detailed 
+step-by-stpe set of examples, please see the <a href="Tutorial.html">Tutorial</a>.
+<p>
+<br>
+<h2>A Simple Example</h2>
+Suppose we want to test the following class:<br>
+<br>
+<span style="font-family:courier new,monospace">1:&nbsp; public class
+MyList extends ArrayList {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">2:&nbsp;&nbsp;&nbsp;
+public boolean putIfAbsent(Object o) {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">3:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+boolean absent = !super.contains(o);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">4:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+if (absent) {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">5:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+super.add(o):</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">6:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">7:&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">8:&nbsp;&nbsp;&nbsp;
+return absent;</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">9:&nbsp; }</span><br style="font-family:courier new,monospace">
+<br>
+We can write a simple unit test:<br>
+<br>
+<span style="font-family:courier new,monospace">public void
+testPutIfAbsent() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; MyList list =
+new MyList();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+list.putIfAbsent("A");</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+list.putIfAbsent("A");</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+assertEquals(1, list.size());</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">}</span><br>
+<br>
+This test will pass, because the second call to <span style="font-family:courier new,monospace">putIfAbsent()</span> will
+not add the same element to the list. However, the <span style="font-family:courier new,monospace">MyList</span> class as
+designed contains a threading bug. Suppose two threads call <span style="font-family:courier new,monospace">putIfAbsent()</span>
+simultaneously with the same value? Both threads could evaluate the '<span style="font-family:courier new,monospace">absent</span>' variable to
+false, and end up adding the same object twice. Although the bug exists
+is difficult to write a unit test that will demonstrate this behaviour.<br>
+<br>
+<h2>A Simple Weaver Test</h2>
+Weaver allows us to interleave the execution of two separate threads. A
+simple example would be:<br>
+<br>
+<span style="font-family:courier new,monospace">public class
+MyListTest {<br>
+</span><span style="font-family:courier new,monospace">&nbsp; MyList
+list;</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace"><br>
+</span><span style="font-family:courier new,monospace">&nbsp;
+@ThreadedBefore<br>
+&nbsp; public void before() {<br>
+</span><span style="font-family:courier new,monospace"><span>&nbsp;&nbsp;&nbsp;
+</span>list = new MyList();</span><br>
+<span style="font-family:courier new,monospace">&nbsp; }<br>
+</span><span style="font-family:courier new,monospace"><br>
+&nbsp; @ThreadedMain<br>
+&nbsp; public void mainThread() {<br>
+</span><span style="font-family:courier new,monospace">&nbsp; &nbsp;
+list.putIfAbsent("A");</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; }<br>
+&nbsp; <br>
+&nbsp; @ThreadedSecondary<br>
+&nbsp; public void secondThread() {<br>
+</span><span style="font-family:courier new,monospace">&nbsp; &nbsp;
+list.putIfAbsent("A");</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">
+&nbsp; }<br>
+</span><br>
+<span style="font-family:courier new,monospace">&nbsp; @ThreadedAfter<br>
+&nbsp; public void after() {<br>
+</span><span style="font-family:courier new,monospace">&nbsp; &nbsp;
+assertEquals(1, list.size());</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; }</span><br>
+<span style="font-family:courier new,monospace">}<br>
+</span><br>
+This test class uses a series of annotations to tell Weaver how to run
+the tests. Before running any tests, the method annotated with <span style="font-family:Courier New,Courier,monospace">@ThreadedBefore</span>
+will be invoked. Then the methods labelled <span style="font-family:Courier New,Courier,monospace">@ThreadedMain</span>
+and <span style="font-family:Courier New,Courier,monospace">@ThreadedSecondary</span>
+will be invoked in two separate threads. Finally, the method annotated
+with <span style="font-family:Courier New,Courier,monospace">@ThreadedAfter</span>
+will be invoked.<br>
+<br>
+The two calls to to <span style="font-family:Courier New,Courier,monospace">putIfAbsent</span>
+will be interleaved. The first thread (which invokes the <span style="font-family:Courier New,Courier,monospace">@ThreadedMain</span>
+method) will stop on the first line of <span style="font-family:Courier New,Courier,monospace">putIfAbsent</span>.
+The second thread (which invokes the <span style="font-family:Courier New,Courier,monospace">@ThreadedSecondary</span>
+method) will then run to completion, after which the first thread will
+finish. When both threads are finished, the <span style="font-family:Courier New,Courier,monospace">@ThreadedAfter</span>
+method will be invoked. This process is then repeated, breaking on the
+second executable line of putIfAbsent, and so forth.<span style="font-family:courier new,monospace"><span style="font-family:arial,sans-serif"><br>
+</span></span><br>
+In order to invoke Weaver, you must add a special invocation to your
+test class. Using JUnit 4 syntax, this would be:<br>
+<span style="font-family:courier new,monospace"><br>
+public class MyListTest {<br>
+<br>
+&nbsp; // This method is invoked by the regular JUnit test runner.<br>
+&nbsp; @Test<br>
+&nbsp; public void testThreading() {<br>
+</span><span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+AnnotatedTestRunner runner = new AnnotatedTestRunner();<br>
+&nbsp;&nbsp;&nbsp; // Run all Weaver tests in this class, using MyList
+as the Class Under Test.<br>
+<span>&nbsp;&nbsp;&nbsp; runner.runTests(this.get</span>Class(),
+MyList.class);<br>
+&nbsp; }<br>
+&nbsp; ...<br style="font-family:courier new,monospace">
+</span>
+<span style="font-family:courier new,monospace">}<br>
+</span><br>
+The runTests() method tells the runner to execute all of the threaded
+tests defined in <span style="font-family:Courier New,Courier,monospace">MyListTest</span>.
+Passing in <span style="font-family:Courier New,Courier,monospace">MyList.class</span>
+as the second argument tells Weaver which class is being tested. Weaver
+will break the main test thread at the first method in <span style="font-family:Courier New,Courier,monospace">MyList</span> that
+gets invoked. (In this case, it will break at <span style="font-family:Courier New,Courier,monospace">putIfAbsent()</span>).<br>
+<h4>Exceptions and Test Failures</h4>
+<p>If any of the methods invoked by the test runner throw an exception,
+that exception will be wrapped in a RuntimeException, and thrown by the
+<span style="font-family:courier new,monospace">runTests()</span>
+method. Thus any exceptions encountered in the test will result in a
+test failure. Note that the various annotated methods invoked by the
+runner may be declared to throw checked exceptions. <br>
+</p>
+<h4></h4>
+<span style="font-family:courier new,monospace">&nbsp; @ThreadedMain<br>
+&nbsp; public void openFile() throws IOException {<br>
+</span><span style="font-family:arial,sans-serif"><span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; ...</span><br>
+</span><br>
+Any IOException thrown will be wrapped in a RuntimeException and thrown
+from <span style="font-family:Courier New,Courier,monospace">runTests()</span>.<br>
+<span style="font-family:arial,sans-serif"><br>
+</span>
+<h2><span style="font-family:arial,sans-serif">Controlling how
+Threads Break</span></h2>
+If you need finer-grained
+control over exactly where the test threads stop, Weaver provides
+facilities that will let you do this.<br>
+<br>
+<h3><span style="font-family:arial,sans-serif">Code Positions and
+Breakpoints</span></h3>
+<h3></h3>
+Weaver allows you to specify positions within the source code of the
+classes being tested. Using these positions, you can then create
+Breakpoints, which will cause threads to stop executing when they hit
+them. Using these Breakpoints, you can control exactly how your
+multithreaded tests behave. In addition, Weaver offer various utilility
+classes for defining and executing test threads.<br>
+<br>
+Internally, Weaver handles these breakpoints by using byte-code
+instrumentation. The classes under test are loaded by a custom
+classloader which adds additional callbacks into the byte code. These
+callbacks are used to stop and resume executing threads. (Note that it
+is also possible to use Weaver without using instrumentation, provided
+that you can inject fake or mock objects into your test class. See <a href="#WithoutInstrumentation">below</a>.)<br>
+<br>
+<h3>CodePositions</h3>
+A <span style="font-family:Courier New,Courier,monospace">CodePosition</span>
+represents a location within an instrumented class. (Weaver can only
+define positions inside classes that it has instruemnted.) The code
+fragment below creates a <span style="font-family:Courier New,Courier,monospace">CodePosition</span>
+that represents the point immediately after the call to <span style="font-family:Courier New,Courier,monospace">super.contains()</span>
+in <span style="font-family:Courier New,Courier,monospace">putIfAbsent()</span>.
+The approach is analagous to creating an <a href="http://www.google.com/url?q=http%3A%2F%2Fwww.easymock.org%2FDocumentation.html&amp;sa=D&amp;sntz=1&amp;usg=AFrqEzfRrCMlXagnfPHe5ls6v6h942Rf0w">EasyMock</a> object
+and using the <span style="font-family:Courier New,Courier,monospace">expect()</span>
+syntax.<br>
+<span style="font-family:courier new,monospace"><br>
+</span><span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+MyList list = new MyList();<br>
+&nbsp;&nbsp;&nbsp; MethodRecorder&lt;MyList&gt; recorder = new
+MethodRecorder&lt;MyList&gt;(list);<br>
+&nbsp;&nbsp;&nbsp; MyList control = recorder.getControl();<br>
+&nbsp;&nbsp;&nbsp; Collection target =
+recorder.createTarget(Collection.class);<br>
+&nbsp;&nbsp;&nbsp; CodePosition position =
+recorder.inMethod(control.putIfAbsent(null))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+.afterCalling(target.contains(null))<br>
+<br>
+</span>Lets break this down line by line.<br>
+<br>
+Create a new <span style="font-family:courier new,monospace">MyList</span>
+instance, and then create a <span style="font-family:courier new,monospace">MethodRecorder</span> to
+record the methods that we invoke.<br>
+<br>
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+MyList list = new MyList();<br>
+&nbsp;&nbsp;&nbsp; MethodRecorder&lt;MyList&gt; recorder = new
+MethodRecorder&lt;MyList&gt;(list);<br>
+</span><br>
+<br>
+Ask the <span style="font-family:Courier New,Courier,monospace">MethodRecorder</span>
+to create a new control object. This is a dummy instance of <span style="font-family:Courier New,Courier,monospace">MyList</span>. We
+can record the methods that we invoke upon it, in order to specify code
+positions.<br>
+<span style="font-family:courier new,monospace"><br>
+</span><span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+MyList control = recorder.getControl();<br>
+</span><span style="font-family:courier new,monospace"><span style="font-family:arial,sans-serif"><br>
+</span></span><br>
+Ask the <span style="font-family:Courier New,Courier,monospace">MethodRecorder</span>
+to create a new target object. This is a dummy instance of <span style="font-family:Courier New,Courier,monospace">Collection</span>
+that we use to record method calls.<br>
+<br>
+<span style="font-family:courier new,monospace">
+&nbsp;&nbsp;&nbsp; Collection target =
+recorder.createTarget(Collection.class);<br>
+</span><span style="font-family:courier new,monospace"><span style="font-family:arial,sans-serif"><br>
+</span></span><br>
+Finally, create a <span style="font-family:Courier New,Courier,monospace">CodePosition</span>
+that represents the the point just after calling <span style="font-family:Courier New,Courier,monospace">super.contains()</span>
+in <span style="font-family:Courier New,Courier,monospace">putIfAbsent()</span>.<br>
+<span style="font-family:courier new,monospace"><br>
+</span><span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+CodePosition position = recorder.inMethod(control.putIfAbsent(null))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+.afterCalling(target.contains(null))<br>
+</span><br>
+<br>
+As well as using the <span style="font-family:courier new,monospace">MethodRecorder</span>,
+you can also specify <span style="font-family:courier new,monospace">CodePositions</span>
+explicitly using <span style="font-family:courier new,monospace">Method</span>
+objects or strings.<br>
+<br>
+<span style="font-family:courier new,monospace">&nbsp; MyList list =
+new MyList();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+ClassInstrumentation clss =
+Instrumentation.getClassInstrumentation(MyList.class);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // Create a
+CodePosition that represents a call to</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // the method
+named "contains" within the method "putIfAbsent"</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; Method
+putMethd = MyList.class.getDeclaredMethod("putIfAbsent", Object.class);<br>
+&nbsp; Method containsMethod = Collection.class.getD</span><span style="font-family:courier new,monospace">eclaredMethod("contains",
+Object.class);</span><br>
+<span style="font-family:courier new,monospace">&nbsp; CodePosition
+position = clss.afterCall(putMethod, containsMethod);</span><br style="font-family:courier new,monospace">
+<br>
+or<br>
+<span style="font-family:arial,sans-serif"><br>
+</span><span style="font-family:courier new,monospace">&nbsp;
+CodePosition position = clss.afterCall("putIfAbsent", "contains");</span><br style="font-family:courier new,monospace">
+<br>
+<h3>Using CodePositions</h3>
+You can use a <span style="font-family:courier new,monospace">CodePosition</span>
+to control how Weaver interleaves two threads of execution. Recall that
+in our initial example of the <span style="font-family:courier new,monospace">MyListTest</span> class,
+Weaver would break at every line in the <span style="font-family:courier new,monospace">putIfAbsent</span> method
+in order to allow the second thread to execute. Suppose that we want
+the initial thread to execute until it returns from the call to <span style="font-family:courier new,monospace">super.contains()</span>,
+and only then do we want the second thread to start.<br>
+<br>
+<span style="font-family:courier new,monospace">1:&nbsp; public class
+MyList extends ArrayList {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">2:&nbsp;&nbsp;&nbsp;
+public boolean putIfAbsent(Object o) {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">3:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+boolean absent = !super.contains(o);</span><br>
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&lt;-- Stop here, let second thread run</span><br>
+<br>
+We can add an option to our test class to specify that Weaver should
+stop the first thread at this position.<br>
+<br>
+<span style="font-family:courier new,monospace">public class
+MyListTest {<br>
+&nbsp; MyList list;</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace"><br>
+</span><font face="courier new,monospace" style="font-family:courier new,monospace">&nbsp; @ThreadedOptions</font><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; public
+AnnotatedTestOptions getOptions() {<br>
+<font face="courier new,monospace">&nbsp;&nbsp;&nbsp; ...</font><br>
+</span><span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+CodePosition position = recorder.inMethod(control.putIfAbsent(null))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+.afterCalling(target.contains(null))</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+return new AnnotatedTestOptions(position);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; }</span><ins></ins><br>
+<p>
+<h2>Using Scripts to control Threads</h2>
+To gain additional control over how threads are paused and resumed,
+Weaver offers the concept of Scripts. A Script represents a series of
+tasks to be performed in a single thread. Only one script may be active
+at a time, and each script can release control to another script.<br>
+<br>
+Scripts use a similar mechanism to the <span style="font-family:Courier New,Courier,monospace">MethodRecorder</span>
+class to allow release points to be specified. You can either <br>
+<br>
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;
+final MyList list = new MyList();</span><br style="font-family:Courier New,Courier,monospace">
+<br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;
+Script&lt;MyList&gt; main = new Script&lt;MyList&gt;(list);</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;
+Script&lt;MyList&gt; second = new Script&lt;MyList&gt;(list);</span><br style="font-family:Courier New,Courier,monospace">
+<br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;
+// Create control and target objects to allow us to specify a release
+point.</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;
+final MyList control = main.object();<br>
+</span><span style="font-family:courier new,monospace">&nbsp;&nbsp;
+final Collection target = main.createTarget(Collection.class);<br>
+</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp; main.addTask(new ScriptedTask&lt;MyList&gt;() {</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp;
+@Override</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp; public void execute() {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // Release to the second
+script while calling "putIfAbsent"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+main.in(control.putIfAbsent(null)).afterCalling(target.contains(null).release(second);<br>
+</span><span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+list.putIfAbsent("A");<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // We will return here after
+the second script releases us<br>
+</span><span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+list.putIfAbsent("B");<br>
+</span><span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp; release(second); &nbsp; <br style="font-family:Courier New,Courier,monospace">
+</span><span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp; }</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp; });</span><br style="font-family:Courier New,Courier,monospace">
+<br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp; second.addTask(new ScriptedTask&lt;SimpleClass3&gt;() {</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp;
+@Override</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp;
+public void execute() {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; list.putIfAbsent("A");<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; release(main);<br style="font-family:Courier New,Courier,monospace">
+</span><span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+list.putIfAbsent("B");<br>
+</span><span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;&nbsp;
+}</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp; });</span><br style="font-family:Courier New,Courier,monospace">
+<br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp; new Scripter&lt;MyList&gt;(main, second).execute();<br>
+<br>
+</span>As the example above shows, scripts can either release control
+explicitly (as the seond script does) or they can declare an intention
+to release control during a call to an instrumented method. (This is
+what the first script is doing.) This allows you maximum flexibility in
+determining when one thread should yield to another.<br>
+<br>
+Although the example shows two scrupts being used, it is possible to
+combine three or more scripts into a single scripter, and release
+between them.<br>
+<p>
+<h2>Low Level Thread Control</h2>
+If the mechanisms defined previously are not sufficient, Weaver allows
+you to take complete control over the way that your threads execute.
+You can use an <span style="font-family:courier new,monospace">InterleavedRunner</span>
+to interleave a specific set of runnable objects, and control where the
+interleaving takes place. Or you can create <span style="font-family:courier new,monospace">Breakpoints</span> that
+determine exactly where a thread will stop, and handle the thread
+execution yourself.<br>
+<h3>Using InterleavedRunner</h3>
+The <span style="font-family:courier new,monospace">InterleavedRunner</span>
+takes two runnable tasks and interleaves them in separate threads. When
+the first task reaches the first executable line of the test method, it
+breaks, and the second task is run to completion. The test is then
+repeated, breaking onthe second executable line, and so forth. The <span style="font-family:courier new,monospace">InterleavedRunner</span>
+also handles&nbsp; the case where the second task cannot continue
+because of a synchronisation lock held by the first task. In that case,
+it will step through the first task until the lock is released, and
+then run the second task. <br>
+<br>
+To use an InterleavedRunner you must define the two tasks.<br>
+<br>
+<span style="font-family:courier new,monospace">&nbsp; // The main
+runnable. Creates a new MyList object for each iteration</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; private static
+class MainTest extends MainRunnableImpl&lt;MyList&gt; {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+private MyList list;</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; <br>
+&nbsp;&nbsp;&nbsp; public Class&lt;MyList&gt; getMainClass() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;
+&nbsp;&nbsp; // The class being tested</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp; &nbsp;&nbsp;
+return MyList.class;</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; &nbsp; }</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public String getMethodName() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;
+&nbsp;&nbsp; // The method being tested</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; &nbsp; &nbsp;
+return "putIfAbsent";</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; &nbsp; }</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public void initialize() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+list = new MyList();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public void run() {</span><br>
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;
+&nbsp;&nbsp; // Invokes the method being tested in the class being
+tested</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+list.putIfAbsent("A");</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; </span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public void terminate() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+assertEquals(1, list.size());</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; }</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // The
+secondary runnable. Uses the MyList object created by the MainTest</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; private static
+class SecondaryTest extends SecondaryRunnableImpl&lt;MyList,
+MainTest&gt; {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+private MyList list;</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public void initialize(MainTest main) {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+list = main.list;</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public void run() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+list.putIfAbsent("A");</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; </span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public void terminate() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+assertEquals(1, list.size());</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; }</span><br style="font-family:courier new,monospace">
+<br>
+<span style="font-family:courier new,monospace">&nbsp; // The test
+method that uses the two runnable classes<br>
+&nbsp; @ThreadedTest</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; public void
+testPutIfAbsent() throws Throwable {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+MainTest main = new MainTest();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+SecondaryTest secondary = new SecondaryTest();</span><br>
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; //
+Use an InterleavedRunner to run the two tests</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+InterleavedRunner&lt;MyList&gt; runner = new
+InterleavedRunner&lt;MyList&gt;();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;}</span><br>
+<br>
+As the tests are running in separate threads, you need to handle
+any exceptions that they may throw. You can use the <span style="font-family:Courier New,Courier,monospace">RunResult</span>
+to get
+access to these:<br>
+<br>
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;
+&nbsp;RunResult result = runner.interleave(main, secondary);<br>
+</span>
+<div><span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;
+&nbsp;// Throws any exceptions produced by the two threads. Can also</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;
+// query for individual exceptions.</span><br style="font-family:Courier New,Courier,monospace">
+<span style="font-family:Courier New,Courier,monospace">&nbsp;&nbsp;&nbsp;
+result.throwExceptionsIfAny();</span><br style="font-family:Courier New,Courier,monospace">
+<br>
+You can also control where the main runnable breaks for the first time.
+By default, this is the first executable line of the test method, but
+you can also specify a <span style="font-family:Courier New,Courier,monospace">CodePosition</span>
+as the first break point.<br>
+</div>
+<br>
+<div><span style="font-family:courier new">&nbsp;&nbsp;&nbsp; //
+Specify the point where the main runnable first breaks.<br>
+</span></div>
+<span style="font-family:courier new">&nbsp;&nbsp;&nbsp; CodePosition
+position = recorder.inMethod(...<br>
+</span>
+
+<div><span style="font-family:courier new"><span style="font-family:Arial"><span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+RunResult result = runner.interleave(main, secondary, position);<br style="font-family:courier new,monospace">
+</span></span></span></div>
+<span style="font-family:courier new"><br>
+</span>
+<div><span style="font-family:courier new"><br>
+</span>Or you can specify an explicit list of positions, and the main
+runnable will only break there:<br>
+</div>
+<div>
+<div><span style="font-family:courier new"><br>
+&nbsp;&nbsp;&nbsp; // Main runnable only breaks at these positions<br>
+</span></div>
+<span style="font-family:courier new">&nbsp;&nbsp;&nbsp; CodePosition
+position1 = recorder.inMethod(...<br>
+</span><span style="font-family:courier new">&nbsp;&nbsp;&nbsp;
+CodePosition position2 = recorder.inMethod(...).beforeCall(...)</span><br>
+
+<div><span style="font-family:courier new">&nbsp;&nbsp;&nbsp;
+List&lt;CodePosition&gt; positions = Lists.newArrayList(position1,
+position2);</span><br>
+
+</div>
+<span style="font-family:courier new"><span style="font-family:Arial"><span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+RunResult result = runner.interleave(main, secondary, positions);<br style="font-family:courier new,monospace">
+</span></span></span>
+<span style="font-family:courier new"><br>
+</span>
+</div>
+<h3>Using Breakpoints</h3>
+For complete control, you can create <span style="font-family:Courier New,Courier,monospace">Breakpoints</span>,
+and use these to suspend and resume your test threads explicitly. Here
+is a sample test using <span style="font-family:Courier New,Courier,monospace">Breakpoints</span>.<br>
+<br>
+<span style="font-family:courier new,monospace">public void
+testPutIfAbsent() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; final MyList
+list = new MyList();</span><br>
+<span style="font-family:courier new,monospace">&nbsp;
+ClassInstrumentation clss =
+Instrumentation.getClassInstrumentation(MyList.class);<br>
+&nbsp; /// Create a CodePosition at the point where we want to stop<br style="font-family:courier new,monospace">
+</span><span style="font-family:courier new,monospace">&nbsp; Method putMethd =
+MyList.class.getDeclaredMethod("putIfAbsent", Object.class);<br>
+&nbsp; Method containsMethod = Collection.class.getD</span><span style="font-family:courier new,monospace">eclaredMethod("contains",
+Object.class);</span><br>
+<span style="font-family:courier new,monospace">&nbsp; CodePosition
+position = clss.afterCall(putMethod, containsMethod);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace"><br>
+</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; Runnable task
+= new Runnable() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public void run() {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+list.putIfAbsent("A");</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; Thread thread1
+= new Thread(task);</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // Create a
+Breakpoint from the code position and thread.<br>
+</span><span style="font-family:courier new,monospace">&nbsp;
+ObjectInstrumentation&lt;MyList&gt; instrumented =</span>&nbsp; <span style="font-family:courier new,monospace">Instrumentation.getObjectInstrumentation(list);</span><span style="font-family:courier new,monospace"> <br style="font-family:courier new,monospace">
+</span>
+<span style="font-family:courier new,monospace">&nbsp; Breakpoint bp
+= instrumented.createBreakpoint(position, thread);</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // Start the
+thread. It will run until it hits the Breakpoint</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+thread1.start();</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // Wait until
+the breakpoint is reached. When we return from </span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // await, the
+first thread will be at 'position'</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; bp.await();</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // Update the
+list in the main thread.</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+list.putIfAbsent("A");</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // Let the
+first thread continue. It will call super.add()</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; bp.carryOn();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; // Wait for
+the first thread to finish</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; thread1.join();</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+assertEquals(1, list.size());</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">}</span><br>
+<br>
+With the initial (unsynchronized) version of <span style="font-family:Courier New,Courier,monospace">MyList</span>, the
+assertion at the end of this test will fail. We can fix to MyList by
+making the <span style="font-family:courier new,monospace">putIfAbsent</span>
+method synchronized. <br>
+<br>
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public synchronized void putIfAbsent(Object o) {</span><br>
+<br>
+However, the test code above now has a problem. If we put a breakpoint
+in the middle of <span style="font-family:courier new,monospace">putIfAbsent()</span>,
+and then try to call <span style="font-family:courier new,monospace">putIfAbsent()</span>
+again, then the second thread will block. To avoid this problem, we can
+use two separate threads, and use a <span style="font-family:courier new,monospace">ThreadMonitor</span> to
+manage the execution of the second thread. (<span>A <span style="font-family:Courier New,Courier,monospace">ThreadMonitor</span>
+waits for a thread to
+finish, and lets you know when it's blocked.</span>) This will return
+with a status code if the second thread is blocked.<br>
+<br>
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+Thread thread1 = new Thread(task);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+Thread thread2 = new Thread(task);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+thread1.start();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+bp.await();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+thread2.start();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+ThreadMonitor monitor = new ThreadMonitor(thread2, thread1);</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; //
+Wait for the second thread to finish. Returns false if the second</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; //
+thread is blocked, or true if it ran to completion</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+boolean secondFinished =&nbsp; monitor.waitForThread();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+bp.carryOn();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+thread1.join();</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; //
+If the second thread did not run to completion, wait for it.</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; if
+(!secondFinished) {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+thread2.join();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+assertEquals(1, list.size());</span><span><br>
+</span><br>
+<h3>More on Breakpoints</h3>
+<span style="font-family:Courier New,Courier,monospace">Breakpoints</span>
+are normally specific to a specific object, in a specifi thread. In the
+example above, we obtained an <span style="font-family:Courier New,Courier,monospace">ObjectInstrumentation</span>
+for the <span style="font-family:Courier New,Courier,monospace">"list"</span>
+instance, and created a breakpoint for that instance, in the thread <span style="font-family:Courier New,Courier,monospace">"thread"</span>.
+The breakpoint will only be triggered when the given object is invoked
+in the given thread.<br>
+<br>
+<span style="font-family:Courier New,Courier,monospace">Breakpoints</span>
+are normally single-shot. Once a <span style="font-family:Courier New,Courier,monospace">Breakpoint</span>
+has been reached, it will no longer be triggered. However, <span style="font-family:Courier New,Courier,monospace">Breakpoints</span>
+can have an associated count (so that they will only be triggered the
+Nth time they are hit) and they can be temporarily disabled, and later
+re-enabled.<br>
+<br>
+<h2>Using Breakpoints without
+Instrumentation</h2>
+If your test uses fake or mock objects, you can use Weaver's built-in
+Breakpoint adapters. Suppose we have the following class:<br>
+<br>
+<span style="font-family:courier new,monospace">&nbsp; public class
+UserManager {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+private UserDatabase db;&nbsp; </span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+public void addUser(String userName) {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+if (!db.contains(userName)) {</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+db.add(userName);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+}</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp; }</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; } </span><br>
+<br>
+If you are using EasyMock to create a mock UserDatabase then you can
+create a <span style="font-family:Courier New,Courier,monospace">BlockingAnswer</span>
+(which implements <span style="font-family:Courier New,Courier,monospace">Breakpoint</span>)
+as follows:<br>
+<br>
+<span style="font-family:courier new,monospace">&nbsp; Thread thread1;</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; UserDatabase
+mockDb = createStrictMock(UserDatabase.class);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+BlockingAnswer&lt;Boolean&gt; answer = </span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;&nbsp;&nbsp;
+new BlockingAnswer&lt;Boolean&gt;(false, thread1);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+mockDb.contains(USERNAME).andAnswer(answer);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; UserManager
+manager = new UserManager(mockDb);</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; ....</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+thread1.start();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; answer.await();</span><br>
+<br>
+When <span style="font-family:Courier New,Courier,monospace">"thread1"</span>
+invokes <span style="font-family:courier new,monospace">mockDb.contains()</span>,
+it will block.<br>
+<br>
+If you are using a handwritten fake object, you can obtain a similar
+result using a <span style="font-family:Courier New,Courier,monospace">BlockingProxy</span>.<br>
+<br>
+<span style="font-family:courier new,monospace">&nbsp; Thread thread1;</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; UserDatabase
+fakeDb = new FakeDatabase();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; UserDatabase
+proxy = BlockingProxy.create(UserDatabase.class, fakeDb, "getUser");</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; UserManager
+manager = new UserManager(proxy);</span><br style="font-family:courier new,monospace">
+<br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; ....</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp;
+thread1.start();</span><br style="font-family:courier new,monospace">
+<span style="font-family:courier new,monospace">&nbsp; proxy.await();</span><br>
+<br>
+The <span style="font-family:Courier New,Courier,monospace">BlockingProxy</span>
+will proxy all calls to the underlying <span style="font-family:Courier New,Courier,monospace">FakeDatabase</span>
+object, and will break when it reaches the <span style="font-family:Courier New,Courier,monospace">getUser</span>
+method.<br>
+<br>
+The above example shows the explicit <span style="font-family:Courier New,Courier,monospace">await()</span>method
+being used. It is also possible to combine one of these break points
+with the <span style="font-family:Courier New,Courier,monospace">InterleavedRunner</span>,
+to avoid having to make explicit <span style="font-family:Courier New,Courier,monospace">await()/carryOn()</span>
+calls.<br>
+<br>
+Note that these two <span style="font-family:Courier New,Courier,monospace">Breakpoint</span>
+types cannot be used in all circumstances. In the initial <span style="font-family:Courier New,Courier,monospace">MyList</span>
+class, for example, there is no injectable test object where we can
+create a <span style="font-family:Courier New,Courier,monospace">BlockingProxy</span>
+or <span style="font-family:Courier New,Courier,monospace">BlockingAnswer</span>.
+In order to create <span style="font-family:Courier New,Courier,monospace">Breakpoints</span>
+here, we need to use instrumentation.<br>
+<br>
+<br style="font-family:courier new,monospace">
+<br>
+<br>
+Copyright 2009 Weaver authors<br>
+Licensed under the Apache License, Version 2.0 (the "License");
+<p /> 
+</body> 
+</html>

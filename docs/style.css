@@ -1,0 +1,175 @@
+/* Style sheet for the Eng School Twiki Web. */
+/* t r b l */
+
+body, th, td, form {
+  font-family: Verdana, Arial, Helvetica, sans-serif; 
+  font-size: 12px; 
+  margin: 1%;
+}
+
+body { padding:0px }
+
+/* NORMAL PAGE CONTENT */
+
+/* HEADINGS */
+h1,h2,h3,h4,h5 {color: #660066; font-weight: 600; text-align: left;}
+h1 {font-size: 18px;}
+h2 {font-size: 16px;}
+h3 {font-size: 14px;}
+h4 {font-size: 12px;}
+h5 {font-size: 11px;}
+
+h2 { border-top: 1px solid #e5ecf9; padding-top: 6px; margin-top: 1px}
+
+/* CODE */
+pre, verbatim {margin-left: 14px; font-family: Courier New, Courier, mono; font-size: 12px; color: #09571b;}
+code, samp, var {color: #09571b;}
+pre, verbatim, .code {
+  background-color: #e5ecf9;
+  border: 1px solid #e5ecf9; 
+  border-radius: 1em;
+  -moz-border-radius: 1em;
+  padding-left: 1em;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  overflow: auto;
+}
+
+.code b, verbatim b, pre b {color: black;}
+b code, b samp, b var {color: black;}
+
+.str, .atv {color: #326c3b}
+.kwd, .tag, .atn {color: #1d2b89}
+.com {color: #76383a}
+.typ, .dec {color: #1d54ab}
+.lit {color: black}
+.pun {color: black}
+.pln {color: black}
+
+@media print {
+  code, samp, var, pre, verbatim {color: black;}
+  pre, verbatim, .code {
+    background-color: white;
+    border: 1px solid black; 
+  }
+  .str { color: #060; }
+  .kwd { color: #006; font-weight: bold; }
+  .com { color: #600; font-style: italic; }
+  .typ { color: #404; font-weight: bold; }
+  .lit { color: #044; }
+  .pun { color: #440; }
+  .pln { color: #000; }
+  .tag { color: #006; font-weight: bold; }
+  .atn { color: #404; }
+  .atv { color: #060; }
+}
+
+
+
+/* TABLES */
+table     {border: 0;border-collapse: collapse;}
+th        {padding-right: 4px; padding-left: 4px; }
+td        {padding-right: 4px; padding-left: 4px; vertical-align: top; text-align: left;}
+td.right  {text-align: right;}
+td.center {text-align: center;}
+td.centered {vertical-align: middle; text-align: center;}
+
+
+/* NORMAL LINKS */
+
+a {color:#3366ff; text-decoration:none}
+a:visited{color:#6600cc;} 
+a:focus, a:hover {color:#003399; text-decoration: underline;}
+a:active{color:#cc33cc;}
+
+
+/* STYLES FOR WIKI FRAMING */
+
+div.container { 
+  width: 100%;
+  border: 1px solid #EFECF9;
+  margin: 0px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0px;
+}
+
+div.header {
+  padding-top: 0px;
+  padding-bottom: 2px;
+  background-color: #E5ECF9; }
+div.header  form {background-color: #E5ECF9; margin: 2px;}
+
+div.header p {margin: 0px}
+div.header .headright { 
+  float: right;
+  font-size: 10px;
+  text-align: right;
+} 
+
+div.header table {border: 0px; width: 100%; margin: 0px; padding: 0px; }
+div.header td {background-color: #E5ECF9;}
+div.header td.img { 
+  text-align:left; 
+  vertical-align:middle; 
+  width: 1%;
+  margin:0; 
+  padding:0; 
+  background-color:white;}
+div.header td.action { 
+  text-align:right; 
+  vertical-align:middle; 
+  margin:0; 
+  padding:0; }
+
+/* For links to the rest of the engEDU site */
+table.toplinks  {
+  width: 100%;
+  border: 0;
+  margin: 2px;
+  padding: 2px;
+}
+table.toplinks td {
+  color: black;
+  background-color: #e5ecf9;
+  border-right: solid 1px #C3C3C3;
+  border-left: solid 1px #EFEFEF;
+  border-top: solid 1px #EFEFEF;
+
+  vertical-align: middle;
+  text-align: center;
+  font-weight: bold;
+  font-size: 11px;
+  height: 23px;
+  padding-left: 10px;
+  padding-right: 10px;
+  cursor: pointer;
+  cursor: hand;
+}
+table.toplinks td.codelab {
+  color: white;
+  background-color: #1849B5;
+}
+table.toplinks td.courses {
+  color: black;
+  background-color: #E5ECF9;
+}
+
+
+
+/* Used in page templates */
+.label {font-size: 10px}
+.imp {color: red; font-weight: bold;}
+.normal {font-weight: normal;}
+.right {text-align: right;}
+
+
+/* Text that can't be easily read */
+p.invisible { font-size: xx-small; color: white;}
+p.invisible a, p.invisible a:focus, p.invisible a:hover, p.invisible a:active, p.invisible a:visited {color: white;}
+
+/* Text that really doesn't display */
+p.hidden { display:none; }
+
+/* For Safari browsers */
+#maincontent { margin-top: .2em; }

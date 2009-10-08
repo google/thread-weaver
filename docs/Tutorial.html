@@ -1,0 +1,387 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> 
+<html> 
+ 
+<head> 
+  <title>Weaver Examples</title> 
+  <link type="text/css" rel="stylesheet" href="style.css"> 
+  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" /> 
+</head> 
+<h1><a name="Testing_Race_Conditions_in_Java_"> </a> Testing Race Conditions in Java with Weaver </h1> 
+<ul> 
+<li> <a href="#A_Simple_Class">A Simple Class</a> 
+<ul> 
+<li> <a href="#A_first_Weaver_Test">A first Weaver Test</a> 
+</li> 
+<li> <a href="#Iterating_through_the_Test_Case">Iterating through the Test Case</a> 
+</li> 
+</ul> 
+</li> 
+<li> <a href="#A_More_Complex_Class">A  More Complex Class</a> 
+<ul> 
+<li> <a href="#CodePositions">CodePositions</a> 
+</li> 
+<li> <a href="#Using_CodePositions">Using CodePositions</a> 
+</li> 
+</ul> 
+</li> 
+<li> <a href="#Using_Scripts_for_Greater_Flexib">Using Scripts for Greater Flexibility</a> 
+</li> 
+<li> <a href="#Instrumentation_and_how_to_Avoid">Instrumentation, and how to Avoid It</a> 
+</li> 
+<li> <a href="#Exercise">Exercise</a> 
+</li> 
+<li> <a href="#Related_Materials">Related Materials</a> 
+</li> 
+</ul> 
+<b>
+This tutorial walks through a series of concurrency problems to demonstrate Weaver, a framework for writing multi-threaded unit tests in Java. Weaver allows you to create mutliple threads inside a unit test, and to control how these threads are stopped and started. By doing this, you can replicate potential race conditions, and verify that your code performs correctly.
+<p /> 
+Note that Weaver will not necessarily help you detect unknown race conditions. Like any testing framwework, it requires you to anticipate potential problems, and write tests to cover them. In addition,
+it does not detect thread starvation issues, and it will not detect deadlocks (although your test will timeout if a deadlock occurs.) However, it does provide a repeatable and consistent way to
+verify that certain aspects of your code are threadsafe.
+<p /> 
+The source code for this tutorial is available in the <code>examples</code> subdirectory of the Weaver distribution,
+along with an Ant build file that will compile and run the tests.
+<p />
+Note that the example source code contains various multi-threading bugs, and hence the tests are expected to fail when run. As part of the tutorial we will fix these errors.
+<p /> 
+<h2><a name="A_Simple_Class"> </a> A Simple Class </h2> 
+Suppose we have the following Java class:
+<pre> 
+public class UniqueList&lt;E&gt; extends ArrayList&lt;E&gt; {
+ 
+  /**
+   * Adds an element iff it is not already present in this list. Returns true
+   * if the element was added, and false if it was already found.
+   */
+  public boolean putIfAbsent(E elem) {
+    boolean absent = ! super.contains(elem);
+    if (absent) {
+      super.add(elem);
+    }
+    return absent;
+  }
+}
+</pre> 
+This class contains a potential race condition. If we start with an empty list, and two separate threads invoke <code>putIfAbsent</code> with the same element, then depending on the exact ordering of the two threads it is possible that the same element could be added twice, thus violating the class' contract. (Note that in this case and the cases that follow, we are assuming that the example classes are intended to be called
+from multiple threads. If the contract of <code>UniqueList</code> stated that it was only intended to be called from a single thread, then the above code would be correct.)
+<p /> 
+We can detect this race condition by inspecting the code, but it is difficult to write a unit test that demonstrates the problem. If we create two separate threads in our test, and start them independently, it would be difficult to synchronize them so that the potential bug is revealed. We could create a soak test that tries to recreate the problem by running the same operations over and over again, hoping that at some point the threads will be scheduled in such a way as to trigger the bug, but this is neither reliable or repeatable.
+<p /> 
+Weaver provides a framework that allows us to control the exact ordering of threads, and thus create repeatable tests.
+<p /> 
+<h3><a name="A_first_Weaver_Test"> </a> A first Weaver Test </h3> 
+The class <code>UniqueListTest</code> in the <code>examples</code> directory provides a test that demonstrates the problem with <code>UniqueList</code>.
+From the examples directory, you can run it with:
+<pre> 
+  ant unique-list-test
+</pre> 
+This should generate a failure.
+<p /> 
+Let's take a look at the test code in more detail. The test is defined by a set of special annotations. The <code>@ThreadedBefore</code> annotation defines a setup method that is invoked at the start of the test. The <code>@ThreadedMain</code> and <code>@ThreadedSecondary</code> methods are then invoked in two separate threads. When the main and secondary methods have both run, the <code>@ThreadedAfter</code> method is invoked to verify the results of the test.
+<pre>
+  @ThreadedBefore
+  public void before() {
+    // Set up a new UniqueList instance for the test
+    uniqueList = new UniqueList&lt;String&gt;();
+    System.out.printf("Created new list\n");    
+  }
+ 
+  @ThreadedMain
+  public void main() {
+    // Add a new element to the list in the main test thread
+    uniqueList.putIfAbsent(HELLO);
+  }
+ 
+  @ThreadedSecondary
+  public void secondary() {
+    // Add a new element to the list in the secondary test thread
+    uniqueList.putIfAbsent(HELLO);
+  }
+ 
+  @ThreadedAfter
+  public void after() {
+    // If UniqueList is behaving correctly, it should only contain
+    // a single copy of HELLO
+    assertEquals(1, uniqueList.size());
+    assertTrue(uniqueList.contains(HELLO));
+  }
+</pre> 
+<p /> 
+Running the test as-is will result in a failure. In the output you should see something like this:
+<pre> 
+    [junit] Testcase: testPutIfAbsent took 0.524 sec
+    [junit] 	Caused an ERROR
+    ...
+    [junit] Caused by: junit.framework.AssertionFailedError: expected:<1> but was:<2>
+    [junit] 	at UniqueListTest.after(UniqueListTest.java:70)
+</pre> 
+As you cans see, we have managed to add two instances of the string HELLO to the list. To fix the problem, try editing <code>UniqueList</code> as follows:
+<pre> 
+public class UniqueList&lt;E&gt; extends ArrayList&lt;E&gt; {
+ 
+  public <b>synchronized</b> boolean putIfAbsent(E elem) {
+    ...
+</pre> 
+Run the test again, and it should pass. 
+<p /> 
+<h3><a name="Iterating_through_the_Test_Case"> </a> Iterating through the Test Case </h3> 
+<p /> 
+<a name="StdoutReturn"></a> Take a look at the standard output</a> for the test. It should look something like this:
+<pre> 
+In testPutIfAbsent
+Created new list
+Created new list
+Created new list
+Created new list
+</pre> 
+It looks as though we're running the test four times. What's going on?
+<p /> 
+In fact, Weaver is running four different variants of the same test. If we go back and look at the original method, there are four executable lines.
+<pre class='prettyprint'> 
+  public boolean putIfAbsent(E elem) {
+1:    boolean absent = ! super.contains(elem);
+2:   if (absent) {
+3:      super.add(elem);
+    }
+4:   return absent;
+  }
+</pre> 
+Weaver runs the test four times. On the first pass, it runs the <code>@ThreadedMain</code> method until it reaches line 1. Then it pauses the main thread, and runs the <code>@ThreadedSecondary</code> method. On the second pass it runs the <code>@ThreadedMain</code> method up until line 2, and then runs the <code>@ThreadedSecondary</code>, and so on.
+<p /> 
+(Internally, Weaver achieves this by instrumenting the bytecode of the classes under test. By adding callbacks into the test framework, we can pause one thread and run another. This will be covered in more detail below.)
+<p /> 
+To verify Weaver's behaviour, remove the <code>synchronized</code> keyword again, and re-run the test. It will fail, and if you look at the test output we should see: 
+<pre> 
+In testPutIfAbsent
+Created new list
+Created new list
+...
+</pre> 
+The first time the test is run, Weaver stops just before line 1, and then allows the second thread to run.  This configuration is in fact safe: the variable <code>absent</code> has not yet been evaluated. However, on the second run, we stop at line 2, and this triggers the bug.
+<p /> 
+For more debugging, try adding the following to the test:
+<pre class='prettyprint'> 
+  public void testThreadedTests() {
+    runner.setDebug(true); // Add this line
+    runner.runTests(getClass(), Player.class);
+  }
+</pre> 
+<h2><a name="A_More_Complex_Class"> </a> A  More Complex Class </h2> 
+For simple methods, allowing Weaver to break once at every line is sufficient, but for more complex methods there may be problems. Certain lines may be executed several times, due to loops, but Weaver will only stop on the first execution of that line. Long methods may be slow to test, and many of the test cases may be unnecessary. 
+<p /> 
+More seriously, stopping at certain lines may not represent a valid state. For example, consider the class in <code>Player.java</code>. This maintains a mapping between a <code>Controller</code> that issues commands to play audio media assets, and the underlying  <code>AudioService</code> that controls the sound card. (This is a simplified version of a real class, and a real bug.) After the <code>Player</code> has started playing an asset, it adds a mapping from the asset back to the controller.
+<p /> 
+<pre class='prettyprint'> 
+  public int playAsset(String assetName, Controller controller) {
+    validateAsset(assetName);
+ 
+    // Start playing the asset, and get the token that identifies the audio stream.
+    int token = service.cue(assetName, this);
+ 
+    // Add a mapping from token back to the controller that owns it.
+    controllerMap.put(token, controller);
+    return token;
+  }
+</pre> 
+When the audio finishes, the mapping is used to inform the controller. This happens when the <code>AudioService</code> invokes the <code>onAudioPlayed</code> method in a separate thread.
+<pre class='prettyprint'> 
+  public void onAudioPlayed(int audioToken) {
+    Controller controller = controllerMap.get(audioToken);
+    controller.onFinished();
+  }
+</pre> 
+Once again, we have a potential race condition. If the media asset has a problem, or is of zero length, it is possible that it will terminate immediately, and invoke the <code>onAudioPlayed</code> method before we have had a chance to add the token into the <code>controllerMap</code>. If this happens, then we will get an error when we try to retrieve the controller from the map.
+<p /> 
+We would like to test this scenario. We could run the <code>playAsset</code> method in one thread, and the <code>onAudioPlayed</code> method in a separate thread. However, we need to ensure that we do not call <code>onAudioPlayed</code> in the second thread until after we have called <code>service.cue</code> in the main thread. (Because there is no way that an asset can finish playing before it has started.) In order to make this work, we need finer-grained control over where the main thread stops. We can do this using CodePositions.
+<p /> 
+<h3><a name="CodePositions"> </a> CodePositions </h3> 
+<p /> 
+A <a href="./javadoc/com/google/testing/threadtester/CodePosition.html" target="_top">CodePosition</a> 
+represents a point of execution within the class under test. Once we have defined a position, we can then cause Weaver to break execution at that position.
+<p /> 
+Currently, CodePositions are defined with respect to methods. A position can be specified at the start or end of a method, or at the point before or after a method calls another method.
+<p /> 
+In the <code>Player</code> example, we want to stop at the point just after the call to <code>service.cue</code>.
+<pre class='prettyprint'> 
+    int token = service.cue(assetName, this);
+                                                &lt;&lt;== Stop here
+    controllerMap.put(token, controller);
+    return token;
+  }
+</pre> 
+The CodePosition that we want can be defined using a
+<a href="./javadoc/com/google/testing/threadtester/MethodRecorder.html" target="_top">MethodRecorder</a>. A MethodRecorder contains a dummy instance of the object under test, which can be used in much the same way as an EasyMock mock object.
+<p /> 
+In EasyMock we can say:
+<pre> 
+  service = createMock(AudioService.class);
+  expect(service.cue(ASSET, player)).andReturn(TOKEN);
+</pre> 
+and this will tell the mock object to expect a call to the <code>cue</code> method, and return the given token.
+<p /> 
+Similarly, we can create a <code>CodePosition</code> with the following syntax:
+<pre> 
+  CodePosition cp = recorder.atStartOf(player.playAsset(null, ASSET);
+</pre> 
+This produces a position at the start of the method <code>playAsset</code>. Note that <code>player</code> is a dummy instance of the <code>Player</code> class, just like an EasyMock mock.
+<p /> 
+A more complete example can be found in <code>PlayerTest.java</code>, where we have the following:
+<pre class='prettyprint'> 
+    // Create a MethodRecorder for the Player
+    MethodRecorder&lt;Player&gt; recorder = new MethodRecorder&lt;Player&gt;(Player.class);
+ 
+    // Get hold of a dummy Player instance so that we can record method calls.
+    Player player = recorder.getControl();
+ 
+    // Get hold of a dummy AudioService instance so that we can record method calls.
+    AudioService service = recorder.createTarget(AudioService.class);
+ 
+    // Specify a position in "playAsset" after calling "service.play"
+    CodePosition cp = recorder.
+        in(player.playAsset(null, ASSET)).
+        afterCalling(service.cue(ASSET, null)).
+        position();
+</pre> 
+The code position created here represents the point just after the call to <strong>cue</strong>, within the method <strong>playAsset</strong>. Once we have defined this position, we can then create a test thread that will break here.
+<h3><a name="Using_CodePositions"> </a> Using CodePositions </h3> 
+To create the test, we define two runnable tasks. The main task will call <code>Player.play()</code>, and will break at the given code position.
+The second task will call <code>Player.onAudioPlayed()</code>, and will run when the main thread is broken.
+<pre class='prettyprint'> 
+  private class PlayerMain extends MainRunnableImpl&lt;Player&gt; {
+    ...
+    @Override
+    public void run() {
+      player.playAsset(ASSET, controller);
+    }
+  }
+ 
+  private class PlayerSecond extends 
+      SecondaryRunnableImpl&lt;Player, PlayerMain&gt; {
+    ...
+    @Override
+    public void run() {
+      player.onAudioPlayed(TOKEN);
+    }
+  }
+</pre> 
+These two tasks are then declared to run in parallel, breaking at the position that we have defined:
+<pre class='prettyprint'> 
+    CodePosition cp = getCodePosition();
+    RunResult result = InterleavedRunner.interleave(new PlayerMain(), new PlayerSecond(), 
+        Lists.newArrayList(cp));
+</pre> 
+The 
+<a href="./javadoc/com/google/testing/threadtester/InterleavedRunner.html" target="_top">InterleavedRunner</a> 
+is a part of the Weaver framework. It allows two runnable tasks to be interleaved in a variety of ways.
+<p /> 
+To run the test, type:
+<pre> 
+ant player-test
+</pre> 
+The test should fail. Fix it by adding the appropriate synchronization to <code>Player.java</code>, and verify that the test now passes.
+<p /> 
+Please see the <code>PlayerTest</code> class for full details of how the test works, including alternative methods for creating CodePositions.
+<h2><a name="Using_Scripts_for_Greater_Flexib"> </a> Using Scripts for Greater Flexibility </h2> 
+Using the <code>InterleavedRunner</code> allows us to start one task, pause it at a certain point (or points) and let another task run. For more complex scenarios, Weaver offers
+<a href="./javadoc/com/google/testing/threadtester/Script.html" target="_top">Scripts</a>. A Script is a series of operations that runs in a single thread. A Script can yield control to another Script at any point in its execution. When a Script yields, it will block until another Script yields control back to it again.
+<p /> 
+The sample below shows a simple script case. We create two scripts, <code>main</code> and <code>secondary</code> and add a task to each script. The main task yields control to the second script after invoking the <code>AudioService.cue</code> method.
+<pre> 
+    final Script&lt;Player&gt; main = new Script&lt;Player&gt;(player);
+    final Script&lt;Player&gt; second = new Script&lt;Player&gt;(main);
+ 
+    // Create control and target objects to allow us to specify a release point.
+    final Player control = main.object();
+    final AudioService target = main.createTarget(AudioService.class);
+ 
+    main.addTask(new ScriptedTask&lt;Player&gt;() {
+      @Override
+      public void execute() {
+        // Tell the main script to release to the second script after we've called
+        // AudioService.play() from within Plyer.playAsset()
+        main.in(control.playAsset(ASSET, controller))
+            .afterCalling(target.cue(ASSET, player))
+            .releaseTo(second);
+        player.playAsset(ASSET, controller);
+      }
+    });
+ 
+    second.addTask(new ScriptedTask&lt;Player&gt;() {
+      @Override
+      public void execute() {
+        player.onAudioPlayed(TOKEN);
+      }
+    });
+ 
+    new Scripter&lt;Player&gt;(main, second).execute();
+</pre> 
+The above example comes from class <code>PlayerTestUsingScript</code> in the <code>javatests</code> directory. This shows the <code>PlayerTest</code> class rewritten to use scripts. A more complex example can be found in the <code>UserCacheTest</code> class, which analyses the read/write locks used in the <code>UserCache</code> class. Run it using:
+<pre> 
+ant user-cache-test
+</pre> 
+The test code demonstrates two separate scripts, but you can create as many simultaneous Scripts as are necessary for your test scenario, and a Script can yield control to any other script. When debugging complex scripting scenarios, it may be helpful to insert logging statements in the various script cases.
+<p /> 
+<h2><a name="Instrumentation_and_how_to_Avoid"> </a> Instrumentation, and how to Avoid It </h2> 
+As previously mentioned, Weaver creates breakpoints by modifying the classes under test. During the test, Weaver reloads these classes using a custom classloader, which instruments the bytecode as it is loaded. At every execution point, and at the start and end of every method call, the modified classes make a logging call into the test framework. Threads can be blocked when these logging calls are made.
+<p /> 
+This is why the test cases create an instance of <code>ThreadedTestRunner</code> in order to run the multi-threaded tests. The runner is responsible for loading the necessary test classes, performing the instrumentation, and then invoking the annotated test methods. Attempting to run the multithreaded test methods directly will typically generate an error, because breakpoints can only be created in classes that have been instrumented.
+<p /> 
+However, there are certain categories of test case where the added complexity of instrumentation is not necessary. Consider the class <code>UserManager</code> in the <code>examples</code> directory. This manages users that are stored in an underlying database, and displays a similar bug to the one that we first looked at:
+<pre class='prettyprint'> 
+  Database db;
+ 
+  public boolean addUser(String username) {
+    boolean exists = db.userExists(username);
+    if (!exists) {
+      db.addUser(username);
+    }
+    return !exists;
+  }
+</pre> 
+If two threads invoke this method at the same time, with the same username, then the underlying <code>db.addUser</code> method may be invoked twice with the same user.
+<p /> 
+To write a test for this, we need to block the first thread after the call to <code>userExists</code>. Because <code>Database</code> is an interface that we have defined, we can create our own fake implementation, and block the calling thread in there. Weaver provides a utility class that makes this straightforward. Firstly we need to create a fake Database instance.
+<pre class='prettyprint'> 
+  private class FakeDatabase implements Database {
+    @Override
+    public void addUser(String username) {
+      if (userExists(username)) {
+        throw new IllegalArgumentException("User exists");
+      }
+      users.add(username);
+    }
+  }
+  ...
+  Database fakeDb = new FakeDatabase();
+</pre> 
+Then create a <code>BlockingProxy</code>. This is a dynamic proxy that forwards all calls to an underlying implementation, but will also act as a <code>BreakPoint</code>, blocking the calling thread at a specified location.
+<pre class='prettyprint'> 
+  // Create a proxy that blocks after the call to 'useExists; 
+  BlockingProxy&lt;Database&gt; dbProxy = 
+      BlockingProxy.create(Database.class, fakeDb, "userExists", false);  Database db;
+</pre> 
+The <code>BlockingProxy</code> can then be used to control the interleaving of two threads. A full example is provided. To run it:
+<pre> 
+ant user-manager-test
+</pre> 
+The test will fail. Fix the <code>UserManager</code> implementation by making the method synchronized, and the test should pass.
+<p /> 
+<h2><a name="Exercise"> </a> Exercise </h2> 
+<p /> 
+The source directory contains another file with a concurrency problem. See  <code>NameManager.java</code>. Write a test that demonstrates the problem.
+<p /> 
+<h2><a name="Related_Materials"> </a> Related Materials </h2> 
+<li> <strong>JavaDoc</strong> -- <a href="javadoc/index.html">Index</a> 
+</li> 
+</ul> 
+<p /> 
+<h2><a name="Document_History"> </a> Document History </h2> 
+<p /> 
+Alasdair Mackintosh - initial revision, May 2009
+<p /> 
+Copyright 2009 Weaver authors<br>
+Licensed under the Apache License, Version 2.0 (the "License");
+<p /> 
+</body> 
+</html>
