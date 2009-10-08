@@ -67,6 +67,7 @@
         <pathelement location="${easymockclassextension-jar}"/>
         <pathelement location="${objenesis-jar}"/>
         <pathelement location="${cglib-jar}"/>
+        <pathelement location="${asm-jar}"/>
         <pathelement location="${javassist-jar}"/>
       </classpath>
       <assertions>
