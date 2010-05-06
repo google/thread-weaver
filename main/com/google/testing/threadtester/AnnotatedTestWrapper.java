@@ -316,7 +316,9 @@ public class AnnotatedTestWrapper implements BaseTestWrapper {
       // Check to see if the testRunner's initialize method created an
       // appropriate mainObject.
       if (targetObject == null) {
-        throw new IllegalStateException("@ThreadedBefore did not create a new test object");
+        throw new IllegalStateException(
+            "Neither @ThreadedBefore nor @ThreadedPrepare created a new test object of class "
+            + getClassUnderTest().getName());
       }
     }
 
@@ -325,11 +327,12 @@ public class AnnotatedTestWrapper implements BaseTestWrapper {
       // This callback will be invoked whenever a new InstrumentedObject is
       // created.  We use it in order to work out the mainObject
       if (thread.equals(executionThread)) {
-        if (newObject.getUnderlyingObject().getClass().equals(getClassUnderTest())) {
+        if (getClassUnderTest().isAssignableFrom(newObject.getUnderlyingObject().getClass())) {
           if (targetObject == null) {
             targetObject = newObject.getUnderlyingObject();
           } else {
-            throw new IllegalStateException("Creating second instance of " + targetObject +
+            throw new IllegalStateException(
+                "Creating second instance of " + targetObject.getClass().getName() +
                 ". Only one instance can be created");
           }
         }

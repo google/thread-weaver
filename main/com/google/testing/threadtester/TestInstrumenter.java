@@ -748,7 +748,7 @@ public class TestInstrumenter implements Instrumenter, ClassFileTransformer {
       return;
     }
     CodeAttribute codeAttr = methodInfo.getCodeAttribute();
-    int byteCodeLength = codeAttr.getCode().length;
+    int byteCodeLength = codeAttr == null ? 0 : codeAttr.getCode().length;
     if (byteCodeLength == 0) {
       debugPrint("    No byteCode in method???\n");
       return;

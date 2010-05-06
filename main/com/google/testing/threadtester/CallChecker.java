@@ -108,6 +108,20 @@ class CallChecker {
                 if (callingMethod != null && !result.containsKey(callingMethod) &&
                     methodsToProcess.contains(callingMethod)) {
                   Method calledMethod = getMethod(called.getClassName(),  called.getMethod());
+                  // If we didn't find the called method in the target
+                  // class, see if it's defined in one of the other
+                  // target classes. (These may be superclasses of the
+                  // target.)
+                  if (calledMethod == null) {
+                    for (String targetName : targetNames) {
+                      if (!targetName.equals(called.getClassName())) {
+                        calledMethod = getMethod(targetName,  called.getMethod());
+                        if (calledMethod != null) {
+                          break;
+                        }
+                      }
+                    }
+                  }
                   result.put(callingMethod, calledMethod);
                 }
               }
