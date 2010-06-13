@@ -132,7 +132,7 @@ public final class InstrumentedClassLoader extends ClassLoader {
           definePackage(pkgname, null, null, null, null, null, null, null);
         }
       }
-      String resourceName = className.replace('.', File.separatorChar) + ".class";
+      String resourceName = className.replace('.', '/') + ".class";
       InputStream input = getSystemResourceAsStream(resourceName);
       byte[] classData =  instrumenter.instrument(className, loadClassData(input));
       Class<?> result = defineClass(className, classData, 0, classData.length, null);
