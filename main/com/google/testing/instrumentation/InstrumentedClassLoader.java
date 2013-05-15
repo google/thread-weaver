@@ -48,14 +48,15 @@ public final class InstrumentedClassLoader extends ClassLoader {
    *
    * We also exclude classes from the JUnit and EasyMock test frameworks, from
    * Objenesis, and from org.w3c.dom, on the grounds that we are not likely to
-   * test these directly.
+   * test these directly. We have found classloader/native lib issues with
+   * the jdom library, so exclude that as well.
    *
    * TODO(alasdair): determine if we want to provide an interface that lets
    * callers specify this.
    */
   private static final List<String> excludedClassPrefixes =
       Arrays.asList("java.", "javax.", "sun.", "net.sf.cglib", "junit.",
-                    "org.junit.", "org.objenesis.", "org.easymock.", "org.w3c.dom");
+          "org.junit.", "org.objenesis.", "org.easymock.", "org.w3c.dom", "org.jdom");
 
   /**
    * Creates a new instrumented class loader using the given {@link
