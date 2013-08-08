@@ -16,7 +16,7 @@
 
 package com.google.testing.threadtester;
 
-import static org.easymock.classextension.EasyMock.createMock;
+import static org.easymock.EasyMock.createMock;
 
 
 /**
