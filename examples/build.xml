@@ -61,7 +61,11 @@
   <!-- Note that all of these tests will fail. These cases are
        designed to demonstrate various multi-threading problems, and
        to show how Weaver can help to test them. 
-NameManagerTest.java  PlayerTest.java  PlayerTestUsingScript.java  UniqueListTest.java	UserCacheTest.java  UserManagerTest.java
+         NameManagerTest.java 
+         PlayerTest.java 
+         PlayerTestUsingScript.java
+         UniqueListTest.java
+         UserManagerTest.java
   -->
 
   <target name="unique-list-test">
@@ -88,15 +92,15 @@ NameManagerTest.java  PlayerTest.java  PlayerTestUsingScript.java  UniqueListTes
     </antcall>
   </target>
 
-  <target name="user-cache-test">
-    <antcall target="test">
-      <param name="test-case" value="UserCacheTest"/>
-    </antcall>
-  </target>
-
   <target name="user-manager-test">
     <antcall target="test">
       <param name="test-case" value="UserManagerTest"/>
+    </antcall>
+  </target>
+
+  <target name="user-cache-test">
+    <antcall target="test">
+      <param name="test-case" value="UserCacheTest"/>
     </antcall>
   </target>
 

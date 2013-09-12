@@ -13,6 +13,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * used to illustrate issues with read-write locks. See class example for
  * {@link java.util.concurrent.locks.ReentrantReadWriteLock}.
  *
+ * NOTE: This test will fail. It was written to demonstrate a fault in the class
+ * under test.
+ *
  * @author alasdair.mackintosh@gmail.com (Alasdair Mackintosh)
  */
 public class UserCache {

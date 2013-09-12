@@ -31,6 +31,9 @@ import java.util.Arrays;
 /**
  * Tests {@link Player} using a {@link CodePosition}.
  *
+ * NOTE: This test will fail. It was written to demonstrate a fault in the class
+ * under test.
+ *
  * @author alasdair.mackintosh@gmail.com (Alasdair Mackintosh)
  */
 public class PlayerTest extends TestCase {

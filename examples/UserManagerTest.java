@@ -21,6 +21,9 @@ import java.util.Set;
  * Unit test for UserManager. Demonstrates use of
  * {@link com.google.testing.threadtester.utils.BlockingProxy}.
  *
+ * NOTE: This test will fail. It was written to demonstrate a fault in the class
+ * under test.
+ *
  * @author alasdair.mackintosh@gmail.com (Alasdair Mackintosh)
  */
 public class UserManagerTest extends TestCase {

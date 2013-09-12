@@ -21,6 +21,9 @@ import junit.framework.TestCase;
  * tests as {@link PlayerTest}, but was written to illustrate the use
  * of Scripts.
  *
+ * NOTE: This test will fail. It was written to demonstrate a fault in the class
+ * under test.
+ *
  * @author alasdair.mackintosh@gmail.com (Alasdair Mackintosh)
  */
 public class PlayerTestUsingScript extends TestCase {
