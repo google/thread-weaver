@@ -89,9 +89,8 @@ package com.google.testing.threadtester;
  * </ul></code>
  * <p>
  * The interleaving of the main and secondary methods is handled automatically
- * by the test framework. It will analyse the <code>&#064;ThreadedMain</code>
- * method to find the first call to a method in the class-under-test. For each
- * executable line in the target method it will then:
+ * by the test framework. It will iterate over the set of testable methods. For 
+ * each executable line of each testable method, the framework will:
  * <ul>
  * <li>Invoke the <code>&#064;ThreadedBefore</code> method</li>
  * <li>Invoke the <code>&#064;ThreadedMain</code> method, and pause it at the line</li>
@@ -99,11 +98,31 @@ package com.google.testing.threadtester;
  * <li>Allow the <code>&#064;ThreadedMain</code> method to continue</li>
  * <li>Invoke the <code>&#064;ThreadedAfter</code> method</li>
  * </ul>
+ *
+ * Note that in some cases, the <code>&#064;ThreadedMain</code> method may not
+ * invoke a call that hits the executable line. In that case, the main method
+ * will run to its full completion before the  <code>&#064;ThreadedSecondary</code>
+ * method runs.
  * <p>
  * Finally, the entire test class may define one static method with the {@link
  * ThreadedBeforeAll} annotation, and one static method with the {@link
  * ThreadedAfterAll}. These methods are invoked before and after all of the test
  * cases have been run.
+ * <p>
+ * The set of testable methods is determined by the {@link MethodOption} set in
+ * {@link BaseThreadedTestRunner#setMethodOption}. Possible options are:
+ * <ul>
+ * <li>MAIN_METHOD. (Default.) The framework will analyse the
+ * <code>&#064;ThreadedMain</code> method to find the first call to a method in 
+ * the class-under-test. This become the only testable method.</li>
+ *
+ * <li>ALL_METHODS. All methods in all instrumented classes are testable. Note
+ * that tests using this option may run slowly if the instrumented classes are 
+ * large.</li>
+ *
+ * <li>LISTED_METHODS. All methods listed in the call to
+ * {@link BaseThreadedTestRunner#setMethodOption} are testable.</li>
+ * </ul>
  *
  * @see BaseThreadedTestRunner
  * @see Instrumentation

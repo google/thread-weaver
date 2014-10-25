@@ -26,6 +26,13 @@ public class UniqueList<E> extends ArrayList<E> {
    * if the element was added, and false if it was already found.
    */
   public boolean putIfAbsent(E elem) {
+    return putIfAbsentInternal(elem);
+  }
+
+  // The actual method that we want to test is a private one. To make this work, we
+  // specify the name of this method in the test setup. See
+  // UniqueListTest.testPutIfAbsent()
+  private boolean putIfAbsentInternal(E elem) {
     boolean absent = !super.contains(elem);
     if (absent) {
       super.add(elem);

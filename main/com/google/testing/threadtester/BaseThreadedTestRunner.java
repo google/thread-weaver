@@ -20,7 +20,9 @@ import com.google.testing.instrumentation.InstrumentedClassLoader;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Runs a set of multithreaded tests. This is an abstract base class that
@@ -72,8 +74,13 @@ public abstract class BaseThreadedTestRunner {
   /** The name of the setTimeout method in Options */
   private static final String SET_TIMEOUT = "setTimeout";
 
+  /** The name of the setMethodOption method in Options */
+  private static final String SET_METHOD_OPTION = "setMethodOption";
+
   private boolean debug = Options.DEFAULT_DEBUG;
   private long timeout = Options.DEFAULT_TIMEOUT;
+  private MethodOption methodOption = Options.DEFAULT_METHOD_OPTION;
+  private Set<String> methodNames;
 
   public BaseThreadedTestRunner() {
     // Nothing
@@ -95,6 +102,30 @@ public abstract class BaseThreadedTestRunner {
    */
   public void setTimeout(long newTimeout) {
     this.timeout = newTimeout;
+  }
+
+  /**
+   * Sets the option that determine which methods are run. Iff the option is {@link
+   * MethodOption#LISTED_METHODS}, newMethodNames must be a non-null non-empty set.
+   * The set of method names is in the format "classname.methodname", e.g. 
+   * "com.google.project.MyClass.myMethod". <p>
+   * If not explicitly set, the default value is {@link MethodOption#MAIN_METHOD}.
+   */
+  public void setMethodOption(MethodOption option, Set<String> newMethodNames) {
+    boolean namesSpecified = (newMethodNames != null && newMethodNames.size() > 0);
+    if (option == MethodOption.LISTED_METHODS) {
+      if (!namesSpecified) {
+        throw new IllegalArgumentException(
+            "Must specify at least one method when using LISTED_METHODS");
+      }
+      methodNames = new HashSet<String>(newMethodNames);
+    } else {
+      if (namesSpecified) {
+        throw new IllegalArgumentException(
+            "Cannot specify method names except when using LISTED_METHODS");
+      }
+    }
+    methodOption = option;
   }
 
   /**
@@ -186,16 +217,21 @@ public abstract class BaseThreadedTestRunner {
   private void setOptions(InstrumentedClassLoader loader) {
     if (debug != Options.DEFAULT_DEBUG || timeout != Options.DEFAULT_TIMEOUT) {
       Class<?> optionsClass = loader.getExpectedClass(Options.class.getName());
+      Class<?> methodOptionClass = loader.getExpectedClass(MethodOption.class.getName());
       Method setDebug = MethodCaller.getDeclaredMethod(optionsClass, SET_DEBUG, Boolean.TYPE);
       Method setTimeout = MethodCaller.getDeclaredMethod(optionsClass, SET_TIMEOUT, Long.TYPE);
+      Method setMethodOption = MethodCaller.getDeclaredMethod(
+          optionsClass, SET_METHOD_OPTION, Integer.TYPE, Set.class);
 
       // Need to make the methods accessible. Although Options is in our
       // package, this is an instance of the Options class in a different
       // classloader, and hence not accessible by default
       setDebug.setAccessible(true);
       setTimeout.setAccessible(true);
+      setMethodOption.setAccessible(true);
       MethodCaller.invoke(setDebug, null, Boolean.valueOf(debug));
       MethodCaller.invoke(setTimeout, null, Long.valueOf(timeout));
+      MethodCaller.invoke(setMethodOption, null, methodOption.value, methodNames);
     }
   }
 

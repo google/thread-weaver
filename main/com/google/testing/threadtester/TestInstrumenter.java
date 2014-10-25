@@ -52,7 +52,7 @@ import javassist.expr.MethodCall;
  * suspended.
  * <p>
  * A TestInstrumenter is normally invoked via an {@link
- * com.google.testing.instrumentation.InstrumentedClassLoader}. If tesst are run
+ * com.google.testing.instrumentation.InstrumentedClassLoader}. If tests are run
  * using a {@link BaseThreadedTestRunner}, this is handled automatically. In
  * addition, a TestInstrumenter implements the {@link
  * java.lang.instrument.ClassFileTransformer} interface, so that it can be used

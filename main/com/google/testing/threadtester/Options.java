@@ -16,6 +16,10 @@
 
 package com.google.testing.threadtester;
 
+import java.util.HashSet;
+import java.util.Collections;
+import java.util.Set;
+
 /**
  * Defines internal options for the test runners. This class is static, which is
  * normally considered a bad thing. However, as each test runner will create its
@@ -40,11 +44,62 @@ class Options {
    */
   static final boolean DEFAULT_DEBUG = false;
 
+  static final MethodOption DEFAULT_METHOD_OPTION = MethodOption.MAIN_METHOD;
+
   private static long timeout = DEFAULT_TIMEOUT;
   private static boolean debug = DEFAULT_DEBUG;
+  private static MethodOption method_option = DEFAULT_METHOD_OPTION;
+  private static Set<String> methodNames;
 
   private Options() {
     // Only static methods
+  }
+
+  /**
+   * Sets the option that determine which methods are run. Note that optionVal is an
+   * integer that must correspond to a valid {@link MethodOption}. Iff the option is
+   * {@link MethodOption#LISTED_METHODS}, newMethodNames must be a non-null non-empty set.
+   * The set of method names is in the format "classname.methodname", e.g.
+   * "com.google.project.MyClass.myMethod". <p> If not explicitly set, the default value
+   * is {@link MethodOption#MAIN_METHOD}.
+   */
+  static void setMethodOption(int optionVal, Set<String> newMethodNames) {
+    MethodOption option = MethodOption.fromInt(optionVal);
+    boolean namesSpecified = (newMethodNames != null && newMethodNames.size() > 0);
+    if (option == MethodOption.LISTED_METHODS) {
+      if (!namesSpecified) {
+        throw new IllegalArgumentException(
+            "Must specify at least one method when using LISTED_METHODS");
+      }
+      methodNames = new HashSet<String>(newMethodNames);
+    } else {
+      if (namesSpecified) {
+        throw new IllegalArgumentException(
+            "Cannot specify method names except when using LISTED_METHODS");
+      }
+    }
+    method_option = option;
+  }
+
+  /**
+   * Gets the {@link MethodOption} used by the {@link AnnotatedTestRunner}
+   * that is running the current test. 
+   */
+  static MethodOption getMethodOption() {
+    return method_option;
+  }
+
+  /**
+   * If #getMethodOption returns {@link MethodOption.LISTED_METHODS}, returns
+   * the set of methods to test, in the form "classname.methodname". Otherwise
+   * returns null.
+   */
+  static Set<String> methodsToTest() {
+    if (method_option == MethodOption.LISTED_METHODS) {
+      return Collections.unmodifiableSet(methodNames);
+    } else {
+      return null;
+    }
   }
 
   /**

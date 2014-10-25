@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Implementation of BaseTestWrapper designed for use with {@link
@@ -121,8 +122,35 @@ public class AnnotatedTestWrapper implements BaseTestWrapper {
     Method afterMethod = null;
     Method afterAllMethod = null;
 
-    // Get a list of methods in the instrumentedClasses called by the test class.
-    Map<Method, Method> methodMap = new CallChecker().getCallers(testClass, instrumentedClasses);
+    // If we are running in MAIN_METHOD mode then the method to interleave is produced by
+    // analysing the method invoked by ThreadedMain, and the methodMap is used to identify
+    // this. Otherwise we have an explicit list of methods. The list of targetMethods is
+    // used to identify these.
+    Map<Method, Method> methodMap = null;
+    List<Method> targetMethods = null;
+    MethodOption option = Options.getMethodOption();
+    if (option == MethodOption.MAIN_METHOD) {
+      // Get a list of all methods in the instrumentedClasses called by the test class.
+      // Below we will extract the specific method for each test.
+      methodMap = new CallChecker().getCallers(testClass, instrumentedClasses);
+    } else {
+      CallLoggerFactory logger = CallLoggerFactory.getFactory();
+      targetMethods = new ArrayList<Method>();
+      Set<String> filter = Options.methodsToTest();
+      for (Class <?> clss : instrumentedClasses) {
+        ClassInstrumentation instrClss = logger.getClassInstrumentation(clss);
+        for (MethodInstrumentation mi : instrClss.getMethods()) {
+          Method m = mi.getUnderlyingMethod();
+          Options.debugPrint("Checking %s.%s\n", clss.getName(), m.getName()); 
+          if (filter == null || filter.contains(clss.getName() + "." + m.getName())) {
+            targetMethods.add(m);
+          }
+        }
+      }
+      if (targetMethods.size() == 0) {
+        throw new IllegalStateException("No valid target methods were specified.");
+      }
+    }
 
     // Go through the methods in the test class, extracting and verifying the
     // annotations.
@@ -197,18 +225,28 @@ public class AnnotatedTestWrapper implements BaseTestWrapper {
       }
       secondaryMethods.remove(name);
 
-      // Find the target method invoked by the main test method, using the map
-      // from the CallChecker.
-      Method targetMethod = methodMap.get(mainMethods.get(name));
-      if (targetMethod == null) {
-        throw new IllegalArgumentException("Method @ThreadedMain(\"" + name +
-            "\") does not call a method in an instrumented class");
+      // If we have a methodMap, use that. Otherwise use the explicit list. See comments
+      // above.
+      if (methodMap != null) {
+        // Find the target method invoked by the main test method, using the map
+        // from the CallChecker.
+        Method targetMethod = methodMap.get(mainMethods.get(name));
+        if (targetMethod == null) {
+          throw new IllegalArgumentException("Method @ThreadedMain(\"" + name +
+                                             "\") does not call a method in an instrumented class");
+        }
+        // Create a new test case. The verification method is optional, so we
+        // don't test for it.
+        testCases.add(new TestCase(name, beforeMethod, mainMethods.get(name), secondaryMethod,
+                                   verifyMethods.get(name), afterMethod, targetMethod));
+      } else {
+        for (Method targetMethod : targetMethods) {
+          // Create a new test case. The verification method is optional, so we
+          // don't test for it.
+          testCases.add(new TestCase(name, beforeMethod, mainMethods.get(name), secondaryMethod,
+                                     verifyMethods.get(name), afterMethod, targetMethod));
+        }
       }
-
-      // Create a new test case. The verification method is optional, so we
-      // don't test for it.
-      testCases.add(new TestCase(name, beforeMethod, mainMethods.get(name), secondaryMethod,
-                                 verifyMethods.get(name), afterMethod, targetMethod));
     }
     // After creating the test cases, we should have removed all of the
     // secondary methods from the list. If any are left, we don't have

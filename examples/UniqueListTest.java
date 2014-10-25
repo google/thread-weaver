@@ -7,10 +7,13 @@
 
 
 import com.google.testing.threadtester.AnnotatedTestRunner;
+import com.google.testing.threadtester.MethodOption;
 import com.google.testing.threadtester.ThreadedAfter;
 import com.google.testing.threadtester.ThreadedBefore;
 import com.google.testing.threadtester.ThreadedMain;
 import com.google.testing.threadtester.ThreadedSecondary;
+
+import java.util.HashSet;
 
 import junit.framework.TestCase;
 
@@ -31,9 +34,14 @@ public class UniqueListTest extends TestCase {
 
   public void testPutIfAbsent() {
     System.out.printf("In testPutIfAbsent\n");
-    // Create an AnnotatedTestRunner that will run the threaded tests defined in
-    // this class. These tests are expected to makes calls to UniqueList.
+    // Create an AnnotatedTestRunner that will run the threaded tests defined in this
+    // class. We want to test the behaviour of the private method "putIfAbsentInternal" so
+    // we need to specify it by name using runner.setMethodOption()
     AnnotatedTestRunner runner = new AnnotatedTestRunner();
+    HashSet<String> methods = new HashSet<String>();
+    methods.add("UniqueList.putIfAbsentInternal");
+    runner.setMethodOption(MethodOption.LISTED_METHODS, methods);
+    runner.setDebug(true);
     runner.runTests(this.getClass(), UniqueList.class);
   }
 
