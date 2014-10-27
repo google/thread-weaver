@@ -39,8 +39,7 @@ public class UniqueListTest extends TestCase {
     // we need to specify it by name using runner.setMethodOption()
     AnnotatedTestRunner runner = new AnnotatedTestRunner();
     HashSet<String> methods = new HashSet<String>();
-    methods.add("UniqueList.putIfAbsentInternal");
-    runner.setMethodOption(MethodOption.LISTED_METHODS, methods);
+    runner.setMethodOption(MethodOption.ALL_METHODS, methods);
     runner.setDebug(true);
     runner.runTests(this.getClass(), UniqueList.class);
   }

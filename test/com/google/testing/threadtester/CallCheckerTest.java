@@ -21,6 +21,7 @@ import junit.framework.TestCase;
 
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Tests {@link CallChecker} by analysing the calls made by {@link
@@ -47,9 +48,16 @@ public class CallCheckerTest extends TestCase {
     doCallChecker(CallCheckerClassSubclass.class, false);
   }
 
+  private Method getSingleElem(Method caller, Map<Method, Set<Method>> methodMap) {
+    Set<Method> methodSet = methodMap.get(caller);
+    assertTrue(methodSet != null);
+    assertEquals(1, methodSet.size());
+    return (Method) methodSet.toArray()[0];
+  }
+
   private void doCallChecker(Class<?> callingClass, boolean expectMethod3) throws Exception {
     CallChecker checker = new CallChecker();
-    Map<Method, Method> calls =
+    Map<Method, Set<Method>> calls =
       checker.getCallers(callingClass, SimpleClass.class, SimpleClass2.class);
 
     // We should record the first method in SimpleClass or SimpleClass2 called
@@ -57,18 +65,57 @@ public class CallCheckerTest extends TestCase {
     // to SimpleClass3.
     assertEquals(expectMethod3 ? 4 : 3, calls.size());
 
-    Method called1 = calls.get(CallCheckerClass.class.getDeclaredMethod("method1", int.class));
+    Method called1 = getSingleElem(CallCheckerClass.class.getDeclaredMethod("method1", int.class), calls);
     assertEquals(SimpleClass.class.getDeclaredMethod("add", int.class, int.class), called1);
 
-    Method called2 = calls.get(CallCheckerClass.class.getDeclaredMethod("method1"));
+    Method called2 = getSingleElem(CallCheckerClass.class.getDeclaredMethod("method1"), calls);
     assertEquals(SimpleClass.class.getDeclaredMethod("add", int.class, int.class), called2);
 
-    Method called3 = calls.get(CallCheckerClass.class.getDeclaredMethod("method2"));
+    Method called3 = getSingleElem(CallCheckerClass.class.getDeclaredMethod("method2"), calls);
     assertEquals(SimpleClass2.class.getDeclaredMethod("getValue"), called3);
     if (expectMethod3) {
-      Method called4 = calls.get(CallCheckerClass.class.getDeclaredMethod("method3"));
+      Method called4 = getSingleElem(CallCheckerClass.class.getDeclaredMethod("method3"), calls);
       assertEquals(SimpleClass2.class.getDeclaredMethod("getValue"), called4);
     }
+  }
+
+  public void testCallCheckerAll() throws Exception {
+    CallChecker checker = new CallChecker();
+    Map<Method, Set<Method>> calls =
+      checker.getAllCallers(CallCheckerClass2.class, SimpleClass6.class, SimpleClass.class);
+
+    for (Method caller : calls.keySet()) {
+      System.out.printf("Calls made by %s\n", caller);
+      for (Method called : calls.get(caller)) {
+        System.out.printf("  %s\n", called);
+      }
+    }
+    // CallCheckerClass2 makes calls to to SimpleClass6 from two different methods -
+    // caller() and caller2(). Each of these calls subsidiary methods. Verify the set of
+    // methods for each caller.
+    assertEquals(2, calls.size());
+
+    Method expectedCaller1 = CallCheckerClass2.class.getDeclaredMethod("caller");
+    assertTrue(calls.containsKey(expectedCaller1));
+    Method expectedCalled1_1 = SimpleClass6.class.getDeclaredMethod("method1");
+    Method expectedCalled1_2 = SimpleClass6.class.getDeclaredMethod("protected1");
+    Method expectedCalled1_3 = SimpleClass6.class.getDeclaredMethod("private1");
+    Set<Method> calledMethods = calls.get(expectedCaller1);
+    assertEquals(3, calledMethods.size());
+    assertTrue(calledMethods.contains(expectedCalled1_1));
+    assertTrue(calledMethods.contains(expectedCalled1_2));
+    assertTrue(calledMethods.contains(expectedCalled1_3));
+
+    Method expectedCaller2 = CallCheckerClass2.class.getDeclaredMethod("caller2");
+    assertTrue(calls.containsKey(expectedCaller2));
+    Method expectedCalled2_1 = SimpleClass6.class.getDeclaredMethod("callSimpleClass");
+    Method expectedCalled2_2 = SimpleClass.class.getDeclaredMethod("innerMethod");
+    Method expectedCalled2_3 = SimpleClass.class.getDeclaredMethod("unique");
+    calledMethods = calls.get(expectedCaller2);
+    assertEquals(3, calledMethods.size());
+    assertTrue(calledMethods.contains(expectedCalled2_1));
+    assertTrue(calledMethods.contains(expectedCalled2_2));
+    assertTrue(calledMethods.contains(expectedCalled2_3));
   }
 
   /**  Overrides a single method in SimpleClass */
@@ -91,14 +138,14 @@ public class CallCheckerTest extends TestCase {
 
   public void testCallChecker_handlesCallsToSubclasses() throws Exception {
     CallChecker checker = new CallChecker();
-    Map<Method, Method> calls =
+    Map<Method, Set<Method>> calls =
       checker.getCallers(SimpleSubclassCaller.class, SimpleSubclass.class, SimpleClass2.class);
 
     // We should only record the call to SimpleSubclass.add(). The call to unique() will
     // actually delegate to the superclass method.
     assertEquals(1, calls.size());
 
-    Method called1 = calls.get(SimpleSubclassCaller.class.getDeclaredMethod("method1", int.class));
+    Method called1 = getSingleElem(SimpleSubclassCaller.class.getDeclaredMethod("method1", int.class), calls);
     assertEquals(SimpleSubclass.class.getDeclaredMethod("add", int.class, int.class), called1);
   }
 }

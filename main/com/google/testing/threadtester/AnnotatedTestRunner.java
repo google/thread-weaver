@@ -116,9 +116,10 @@ package com.google.testing.threadtester;
  * <code>&#064;ThreadedMain</code> method to find the first call to a method in 
  * the class-under-test. This become the only testable method.</li>
  *
- * <li>ALL_METHODS. All methods in all instrumented classes are testable. Note
- * that tests using this option may run slowly if the instrumented classes are 
- * large.</li>
+ * <li>ALL_METHODS. The framework will analyse the <code>&#064;ThreadedMain</code> method
+ * to recursively find all calls to methods in the classes-under-test. (I.e. all methods
+ * called directly, and all methods called by those methods. Note that tests using this
+ * option may run slowly if the instrumented classes have deep call heirarchies.</li>
  *
  * <li>LISTED_METHODS. All methods listed in the call to
  * {@link BaseThreadedTestRunner#setMethodOption} are testable.</li>
