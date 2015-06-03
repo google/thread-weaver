@@ -20,11 +20,11 @@ It requires the following components:
 
 To build the extensions:
 
- Easymock/Easymock Class Extesnsion. (http://easymock.org). Version 2.4 or greater.
+ Easymock/Easymock Class Extension. (http://easymock.org). Version 2.4 or greater.
 
 To run the tests:
 
- Easymock/Easymock Class Extesnsion.
+ Easymock/Easymock Class Extension.
 
  JUnit (http://www.junit.org). Version 4.5 or greater.
 
