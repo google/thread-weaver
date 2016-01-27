@@ -40,4 +40,7 @@ main jar plus the extensions, and run all the tests.
 
 MAVEN:
 
-The MapDB group have been using Thread Weaver, and have produced a Mavenised version. For details of this, and for a disussion of the issues that they have had with the framework, see http://www.mapdb.org/blog/thread_weaver.html
+The MapDB group have been using Thread Weaver, and have produced a 
+Mavenised version. For details of this, and for a discussion of the
+issues that they have had with the framework, see 
+http://www.mapdb.org/blog/thread_weaver.html
