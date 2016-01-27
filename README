@@ -37,3 +37,7 @@ BUILDING:
 To build Weaver, edit the build.properties file and fill in the
 location of the required jars. The ant target "all" will build the
 main jar plus the extensions, and run all the tests.
+
+MAVEN:
+
+The MapDB group have been using Thread Weaver, and have produced a Mavenised version. For details of this, and for a disussion of the issues that they have had with the framework, see http://www.mapdb.org/blog/thread_weaver.html
